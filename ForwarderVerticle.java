@@ -30,7 +30,7 @@ public class ForwarderVerticle extends AbstractVerticle {
 		router.get("/api/version").handler(this::getVersion);
 		router.get("/api/faces").handler(this::getFaces);
 		router.get("/api/faces/:id").handler(this::getFace);
-		router.get("/api/pit").handler(this::getPIT);
+		router.get("/api/pit").handler(this::getPit);
 		router.get("/api/fibs").handler(this::getFibs);
 		router.get("/api/fibs/:name").handler(this::getFib);
 		router.get("/api/fibs/:name").handler(this::eraseFib);
@@ -46,6 +46,57 @@ public class ForwarderVerticle extends AbstractVerticle {
 				Version version = this.getVersion_JsonRPC();
 				System.out.println("Version = " + version.toString());
 			}
+			
+			if (action == "get_faces") {
+				JsonArray array = this.getFaces_JsonRPC();
+				System.out.println("Faces = " + array.encodePrettily());
+			}
+			
+			if (action == "get_face") {
+				int id = body.getInteger("id");
+				FaceData face = this.getFace_JsonRPC(id);
+				System.out.println("Face = " + face.toString());
+			}
+			
+			if (action == "get_fibs") {
+				JsonArray fibs = this.getFibs_JsonRPC();
+				System.out.println("Face = " + fibs.toString());
+			}
+			
+			if (action == "get_fib") {
+				String name = body.getString("name");
+				fibFind fib = this.getFib_JsonRPC(name);
+				System.out.println("Face = " + fib.toString());
+			}
+			
+			if (action == "insert_fib") {
+				String name = body.getString("name");
+				
+				Object[] nexthopsJson = body.getJsonArray("nexthops").getList().toArray();
+				Integer[] nexthops = Arrays.copyOf(nexthopsJson, nexthopsJson.length, Integer[].class);
+				
+				this.insertFib_JsonRPC(name, nexthops);
+				System.out.println("Inserted " + name);
+			}
+			
+			if (action == "erase_fib") {
+				String name = body.getString("name");
+				fibErase fib = this.eraseFib_JsonRPC(name);
+				System.out.println("Erased " + fib.toString());
+			}
+			
+			if (action == "dpGlobal") {
+				DpGlobal d = this.getDpGlobal_JSONRpc();
+				System.out.println("DpGlobal = " + d.toString());
+			}
+			
+			if (action == "getPit") {
+				int index = body.getInteger("index");
+				PitInfo p = getPit_JsonRPC(index);
+				System.out.println("PitInfo = " + p.toString());
+			}
+			
+			
 		});
 
 		vertx.createHttpServer().requestHandler(router).listen(8080, result -> {
@@ -210,27 +261,37 @@ public class ForwarderVerticle extends AbstractVerticle {
 		return er;
 	}
 
-	//DpInfo.Global and DpInfo.Pit
-	private void getPIT(RoutingContext context) {
+	//DpInfo.Global
+	private void getDpGlobal(RoutingContext context) {
 		HttpServerResponse response = context.response();
+		DpGlobal dg = getDpGlobal_JSONRpc();
+		response.putHeader("content-type", "application/json").end(dg.toString());
+	}
+	
+	private DpGlobal getDpGlobal_JSONRpc() {
 		TP tp = new TP();
 		JsonRpcClient client = new JsonRpcClient(tp);
 		DpGlobal dg = client.createRequest().id("599851553").method("DpInfo.Global").param("_", 0)
 				.returnAs(DpGlobal.class).execute();
-
-		JsonArray array = new JsonArray();
-
-		for (int i = 0; i < dg.getNFwds(); i++) {
-			PitInfo p = client.createRequest().id("599851554").method("DpInfo.Pit").param("Index", i)
-					.returnAs(PitInfo.class).execute();
-			System.out.println(p.getNEntries());
-			array.add(p.toJsonObject().put("Index", i));
-		}
-
-		response.putHeader("content-type", "application/json")
-				.end(new JsonObject().put("PIT", dg.toJsonObject()).put("threads", array).encodePrettily());
-
-		response.putHeader("content-type", "application/json").end(new JsonObject().put("PIT", array).encodePrettily());
+		
+		return dg;
+	}
+	
+	//DpInfo.Pit
+	private void getPit(RoutingContext context) {
+		int index = Integer.valueOf(context.request().getParam("index"));
+		HttpServerResponse response = context.response();
+		PitInfo p = getPit_JsonRPC(index);
+		
+		response.putHeader("content-type", "application/json").end(p.toString());
+	}
+	
+	private PitInfo getPit_JsonRPC(int index) {
+		TP tp = new TP();
+		JsonRpcClient client = new JsonRpcClient(tp);
+		PitInfo p = client.createRequest().id("599851554").method("DpInfo.Pit").param("Index", index)
+				.returnAs(PitInfo.class).execute();
+		return p;
 	}
 
 	@Override

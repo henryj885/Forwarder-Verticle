@@ -16,9 +16,9 @@ public class EbClient extends AbstractVerticle {
 
 	@Override
 	public void start(Future<Void> fut) {
-		vertx.setPeriodic(10000, id -> {
+		vertx.setPeriodic(5000, id -> {
 			vertx.eventBus().send("fw.service.eb",
-					new JsonObject().put("action", "get_version"));
+					new JsonObject().put("action", "get_faces"));
 		});
 
 	}
